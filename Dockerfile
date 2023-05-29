@@ -15,7 +15,7 @@ RUN git clone https://github.com/klivolks/Flask-Gateway.git /app
 RUN mv /app/.env-example /app/.env
 
 # Generate a unique secret key and append it to .env file
-RUN echo "SECRET_KEY=`python -c 'import secrets; print(secrets.token_urlsafe(16))'`" >> /app/.env
+RUN echo "\n\SECRET_KEY=`python -c 'import secrets; print(secrets.token_urlsafe(16))'`" >> /app/.env
 
 # Install the Python dependencies
 COPY requirements.txt /app/requirements.txt
