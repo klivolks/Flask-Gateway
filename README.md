@@ -73,9 +73,7 @@ This gateway integrates microservices built on various programming languages to 
 
 ## Contributing
 
-We welcome contributions to this project. Please feel free to
-
- fork, make your changes, and open a pull request. For major changes, please open an issue first to discuss what you would like to change.
+We welcome contributions to this project. Please feel free to fork, make your changes, and open a pull request. For major changes, please open an issue first to discuss what you would like to change.
 
 ## License
 
