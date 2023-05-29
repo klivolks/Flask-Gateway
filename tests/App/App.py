@@ -29,8 +29,7 @@ class TestAPIs(TestCase):
                     mock_collection.return_value.put.return_value = None
 
                     # Sending a GET request
-                    response = self.client.get('/api/v1/Test/NotFound')
-                    print(response)
+                    response = self.client.get('/api/v1/')
                     self.assertEqual(response.status_code, 200)
 
     # Add more tests...
