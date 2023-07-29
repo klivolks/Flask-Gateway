@@ -46,6 +46,56 @@ def hello():
     return "<h1>Welcome to API gateway!</h1><p>This serves as the gateway to other micro-services</p>", 200
 
 
+@app.route('/api/v1/<service>/', methods=['GET', 'POST', 'PUT', 'DELETE'])
+def processHome(service):
+    try:
+        api_verification = APIVerification()
+
+        if not api_verification.verify_request():
+            return jsonify({"error": "Invalid API key or Referer, or monthly limit exceeded"}), 403
+
+        data = db.getAfterCount({"Status": 'healthy', "Service": service}, "CallCount")
+        if not data:
+            return jsonify({"error": "Requested service not found"}), 404
+
+        auth_header = request.headers.get('Authorization')
+        headers = {'X-API-Key': data.get('Key'), 'Referer': 'Gateway', 'Authorization': auth_header,
+                   'Content-Type': request.headers.get('Content-Type')}
+        url = f'{data.get("Url")}'
+        content_type = request.headers.get('Content-Type')
+
+        if content_type == 'application/json':
+            response = requests.request(request.method, url, headers=headers, json=request.json)
+        else:
+            response = requests.request(request.method, url, headers=headers, data=request.form)
+
+        end_time = time.time()
+        execution_time = end_time - start_time
+
+        # Update api_logs collection
+        api_logs = collection('api_logs')
+        log_data = {
+            "RequestTime": datetime.datetime.fromtimestamp(int(start_time)),
+            "ResponseTime": datetime.datetime.fromtimestamp(int(end_time)),
+            "API": data["_id"],
+            "ExecutionTime": execution_time
+        }
+        api_logs.put(log_data)
+
+        # Update apis collection
+        status = 'healthy' if response.ok else 'unhealthy'
+        db.set({"_id": data["_id"]}, {"Status": status, "LastChecked": datetime.datetime.now()})
+        return response.text, response.status_code
+
+    except HTTPException as http:
+        logging.error(http)
+        return jsonify({"error": http.description}), http.code
+
+    except Exception as e:
+        logging.error(traceback.format_exc())
+        return jsonify({"error": "An error occurred processing your request"}), 500
+
+
 @app.route('/api/v1/<service>/<path:path>', methods=['GET', 'POST', 'PUT', 'DELETE'])
 def processAPI(service, path):
     try:
@@ -59,8 +109,9 @@ def processAPI(service, path):
             return jsonify({"error": "Requested service not found"}), 404
 
         auth_header = request.headers.get('Authorization')
-        headers = {'X-API-Key': data.get('Key'), 'Referer': 'Gateway', 'Authorization': auth_header}
-        url = f'{data.get("Url")}/{path}'
+        headers = {'X-API-Key': data.get('Key'), 'Referer': 'Gateway', 'Authorization': auth_header,
+                   'Content-Type': request.headers.get('Content-Type')}
+        url = f'{data.get("Url")}{path}'
         content_type = request.headers.get('Content-Type')
 
         if content_type == 'application/json':
@@ -68,7 +119,6 @@ def processAPI(service, path):
         else:
             response = requests.request(request.method, url, headers=headers, data=request.form)
 
-        response.raise_for_status()
         end_time = time.time()
         execution_time = end_time - start_time
 
