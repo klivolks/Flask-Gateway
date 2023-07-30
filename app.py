@@ -83,7 +83,7 @@ def processHome(service):
         api_logs.put(log_data)
 
         # Update apis collection
-        status = 'healthy' if response.ok else 'unhealthy'
+        status = 'healthy' if response.status_code < 500 else 'unhealthy'
         db.set({"_id": data["_id"]}, {"Status": status, "LastChecked": datetime.datetime.now()})
         return response.text, response.status_code
 
@@ -133,7 +133,7 @@ def processAPI(service, path):
         api_logs.put(log_data)
 
         # Update apis collection
-        status = 'healthy' if response.ok else 'unhealthy'
+        status = 'healthy' if response.status_code < 500 else 'unhealthy'
         db.set({"_id": data["_id"]}, {"Status": status, "LastChecked": datetime.datetime.now()})
         return response.text, response.status_code
 
