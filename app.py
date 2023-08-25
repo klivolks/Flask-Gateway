@@ -109,15 +109,17 @@ def processAPI(service, path):
             return jsonify({"error": "Requested service not found"}), 404
 
         auth_header = request.headers.get('Authorization')
-        headers = {'X-API-Key': data.get('Key'), 'Referer': 'Gateway', 'Authorization': auth_header,
-                   'Content-Type': request.headers.get('Content-Type')}
+        headers = {'X-API-Key': data.get('Key'), 'Referer': 'Gateway'}
         url = f'{data.get("Url")}{path}'
         content_type = request.headers.get('Content-Type')
+
+        if auth_header is not None:
+            headers["Authorization"] = auth_header
 
         if content_type == 'application/json':
             response = requests.request(request.method, url, headers=headers, json=request.json)
         else:
-            response = requests.request(request.method, url, headers=headers, data=request.form)
+            response = requests.request(request.method, url, headers=headers, data=request.form, files=request.files)
 
         end_time = time.time()
         execution_time = end_time - start_time
