@@ -121,6 +121,9 @@ def processAPI(service, path):
         else:
             print("headers", headers)
             print("request.form", request.form)
+            app.logger.debug("debug log info")
+            app.logger.info('headers', headers)
+            app.logger.info('request.form', request.form)
             response = requests.request(request.method, url, headers=headers, data=request.form, files=request.files)
 
         end_time = time.time()
