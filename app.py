@@ -119,6 +119,8 @@ def processAPI(service, path):
         if content_type == 'application/json':
             response = requests.request(request.method, url, headers=headers, json=request.json)
         else:
+            print("headers", headers)
+            print("request.form", request.form)
             response = requests.request(request.method, url, headers=headers, data=request.form, files=request.files)
 
         end_time = time.time()
