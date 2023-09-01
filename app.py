@@ -112,19 +112,18 @@ def processAPI(service, path):
         headers = {'X-API-Key': data.get('Key'), 'Referer': 'Gateway'}
         url = f'{data.get("Url")}{path}'
         content_type = request.headers.get('Content-Type')
+        params = None
 
         if auth_header is not None:
             headers["Authorization"] = auth_header
 
+        if request.method.lower() == "get":
+            params = request.args
+
         if content_type == 'application/json':
-            response = requests.request(request.method, url, headers=headers, json=request.json)
+            response = requests.request(request.method, url, headers=headers, params=params, json=request.json)
         else:
-            print("headers", headers)
-            print("request.form", request.form)
-            app.logger.debug("debug log info")
-            app.logger.info('headers', headers)
-            app.logger.info('request.form', request.form)
-            response = requests.request(request.method, url, headers=headers, data=request.form, files=request.files)
+            response = requests.request(request.method, url, headers=headers, params=params, data=request.form, files=request.files)
 
         end_time = time.time()
         execution_time = end_time - start_time
