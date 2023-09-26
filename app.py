@@ -104,7 +104,7 @@ def processAPI(service, path):
         if not api_verification.verify_request():
             return jsonify({"error": "Invalid API key or Referer, or monthly limit exceeded"}), 403
 
-        data = db.getAfterCount({"Status": 'healthy', "Service": service}, "CallCount")
+        data = db.getAfterCount({"Service": service}, "CallCount")  # removed hard call if unhealthy
         if not data:
             return jsonify({"error": "Requested service not found"}), 404
 
@@ -123,7 +123,8 @@ def processAPI(service, path):
         if content_type == 'application/json':
             response = requests.request(request.method, url, headers=headers, params=params, json=request.json)
         else:
-            response = requests.request(request.method, url, headers=headers, params=params, data=request.form, files=request.files)
+            response = requests.request(request.method, url, headers=headers, params=params, data=request.form,
+                                        files=request.files)
 
         end_time = time.time()
         execution_time = end_time - start_time
@@ -139,7 +140,7 @@ def processAPI(service, path):
         api_logs.put(log_data)
 
         # Update apis collection
-        status = 'healthy' if response.status_code < 500 else 'unhealthy'
+        status = 'healthy' if response.status_code < 500 else 'unhealthy'  # Added 500 instead of just ok
         db.set({"_id": data["_id"]}, {"Status": status, "LastChecked": datetime.datetime.now()})
         return response.text, response.status_code
 
@@ -164,7 +165,7 @@ def health_check():
         for api in apis:
             try:
                 response = requests.get(api["Url"])
-                status = 'healthy' if response.ok else 'unhealthy'
+                status = 'healthy' if response.status_code < 500 else 'unhealthy'
                 db.set({"_id": api["_id"]}, {"Status": status, "LastChecked": datetime.datetime.now()})
             except Exception as e:
                 logging.error(e)
