@@ -120,11 +120,15 @@ def processAPI(service, path):
         if request.method.lower() == "get":
             params = request.args
 
+        before_request = datetime.datetime.now()
         if content_type == 'application/json':
             response = requests.request(request.method, url, headers=headers, params=params, json=request.json)
         else:
             response = requests.request(request.method, url, headers=headers, params=params, data=request.form,
                                         files=request.files)
+        
+        after_request = datetime.datetime.now()
+        print("Request module time: ", after_request - before_request)
 
         end_time = time.time()
         execution_time = end_time - start_time

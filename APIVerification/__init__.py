@@ -23,7 +23,10 @@ class APIVerification:
         referer = request.headers.get('Referer')
 
         # Verifying the API key and Referer
+        before_referers_query = datetime.datetime.now()
         referer_data = self.db_referers.getAfterCount({"Status": 1, "Key": api_key, "Referer": referer}, "CallCount")
+        after_referers_query = datetime.datetime.now()
+        print("Referers time: ", after_referers_query - before_referers_query)
 
         if not referer_data:
             return False
