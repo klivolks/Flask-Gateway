@@ -177,8 +177,8 @@ def health_check():
 
 def run():
     load_dotenv()
-    health_check_thread = threading.Thread(target=health_check, daemon=True)
-    health_check_thread.start()
+    # health_check_thread = threading.Thread(target=health_check, daemon=True)
+    # health_check_thread.start()
     app.run(host=os.getenv('HOST'), port=os.getenv('PORT'), debug=True, load_dotenv='development')
 
 
