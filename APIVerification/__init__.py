@@ -42,14 +42,14 @@ class APIVerification:
             return False
 
         # Logging the Request
-        log_data = {
-            "IP": request.remote_addr,
-            "URL": request.url,
-            "Device": request.user_agent.platform,
-            "Referer_id": referer_data["_id"],
-            "Timestamp": datetime.datetime.now(),
-            "Application": referer
-        }
-        self.db_logs.put(log_data)
+        # log_data = {
+        #     "IP": request.remote_addr,
+        #     "URL": request.url,
+        #     "Device": request.user_agent.platform,
+        #     "Referer_id": referer_data["_id"],
+        #     "Timestamp": datetime.datetime.now(),
+        #     "Application": referer
+        # }
+        # self.db_logs.put(log_data)
 
         return True

@@ -73,18 +73,19 @@ def processHome(service):
         execution_time = end_time - start_time
 
         # Update api_logs collection
-        api_logs = collection('api_logs')
-        log_data = {
-            "RequestTime": datetime.datetime.fromtimestamp(int(start_time)),
-            "ResponseTime": datetime.datetime.fromtimestamp(int(end_time)),
-            "API": data["_id"],
-            "ExecutionTime": execution_time
-        }
-        api_logs.put(log_data)
+        # api_logs = collection('api_logs')
+        # log_data = {
+        #     "RequestTime": datetime.datetime.fromtimestamp(int(start_time)),
+        #     "ResponseTime": datetime.datetime.fromtimestamp(int(end_time)),
+        #     "API": data["_id"],
+        #     "ExecutionTime": execution_time
+        # }
+        # api_logs.put(log_data)
 
         # Update apis collection
         status = 'healthy' if response.status_code < 500 else 'unhealthy'
-        db.set({"_id": data["_id"]}, {"Status": status, "LastChecked": datetime.datetime.now()})
+        if status == "unhealthy":
+            db.set({"_id": data["_id"]}, {"Status": status, "LastChecked": datetime.datetime.now()})
         return response.text, response.status_code
 
     except HTTPException as http:
@@ -134,18 +135,19 @@ def processAPI(service, path):
         execution_time = end_time - start_time
 
         # Update api_logs collection
-        api_logs = collection('api_logs')
-        log_data = {
-            "RequestTime": datetime.datetime.fromtimestamp(int(start_time)),
-            "ResponseTime": datetime.datetime.fromtimestamp(int(end_time)),
-            "API": data["_id"],
-            "ExecutionTime": execution_time
-        }
-        api_logs.put(log_data)
+        # api_logs = collection('api_logs')
+        # log_data = {
+        #     "RequestTime": datetime.datetime.fromtimestamp(int(start_time)),
+        #     "ResponseTime": datetime.datetime.fromtimestamp(int(end_time)),
+        #     "API": data["_id"],
+        #     "ExecutionTime": execution_time
+        # }
+        # api_logs.put(log_data)
 
         # Update apis collection
         status = 'healthy' if response.status_code < 500 else 'unhealthy'  # Added 500 instead of just ok
-        db.set({"_id": data["_id"]}, {"Status": status, "LastChecked": datetime.datetime.now()})
+        if status == "unhealthy":
+            db.set({"_id": data["_id"]}, {"Status": status, "LastChecked": datetime.datetime.now()})
         return response.text, response.status_code
 
     except HTTPException as http:
