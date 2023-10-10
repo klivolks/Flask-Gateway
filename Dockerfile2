@@ -1,0 +1,49 @@
+# Build Stage
+FROM python:3.11-alpine as build
+
+# Upgrade pip and install necessary utilities
+RUN pip install --upgrade pip
+RUN apk add --no-cache git
+
+# Set working directory
+WORKDIR /app
+
+# Clone the latest release from the Git repository
+RUN git clone -b development https://github.com/klivolks/Flask-Gateway.git /app
+
+# Rename .env-example to .env and write a secret key
+#RUN mv /app/.env-example /app/.env
+
+# Generate a unique secret key and append it to .env file
+RUN echo "SECRET_KEY=`python -c 'import secrets; print(secrets.token_urlsafe(16))'`" >> /app/.env
+
+# Install the Python dependencies
+COPY requirements.txt /app/requirements.txt
+RUN pip install -r requirements.txt
+
+# Interim Stage for Installing System Updates and ffmpeg
+FROM python:3.11-alpine AS production_base
+
+# Install system updates and ffmpeg
+RUN apk update && \
+    apk add --no-cache ffmpeg
+
+# Create a non-root user to run the application
+RUN adduser -D deploy
+USER deploy
+
+# Production Stage using production_base Image as Base
+FROM production_base as production
+
+# Copy the Python environment and application from the build stage
+COPY --from=build /usr/local /usr/local
+COPY --from=build --chown=deploy /app /app
+
+# Set the working directory
+WORKDIR /app
+
+# Expose the necessary port
+EXPOSE 5001
+
+# Set the entry point to run the Python application directly
+CMD ["python", "app.py"]
