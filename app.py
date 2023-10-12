@@ -1,16 +1,17 @@
+import datetime
+import logging.config
+import os
+import time
 import traceback
+import httpx
+
+import requests
+from daba.Mongo import collection
+from dotenv import load_dotenv
 from flask import Flask, request, jsonify, g
 from flask_cors import CORS
-from daba.Mongo import collection
-import threading
-import time
-import datetime
-from werkzeug.local import LocalProxy
 from werkzeug.exceptions import HTTPException
-import requests
-import os
-import logging.config
-from dotenv import load_dotenv
+from werkzeug.local import LocalProxy
 
 from APIVerification import APIVerification
 
@@ -98,64 +99,42 @@ def processHome(service):
 
 
 @app.route('/api/v1/<service>/<path:path>', methods=['GET', 'POST', 'PUT', 'DELETE'])
-def processAPI(service, path):
+async def processAPI(service, path):
     try:
         api_verification = APIVerification()
 
         if not api_verification.verify_request():
             return jsonify({"error": "Invalid API key or Referer, or monthly limit exceeded"}), 403
 
-        data = db.getAfterCount({"Service": service}, "CallCount")  # removed hard call if unhealthy
+        data = db.getAfterCount({"Service": service}, "CallCount")
         if not data:
             return jsonify({"error": "Requested service not found"}), 404
 
         auth_header = request.headers.get('Authorization')
-        headers = {'X-API-Key': data.get('Key'), 'Referer': 'Gateway'}
-        url = f'{data.get("Url")}{path}'
-        content_type = request.headers.get('Content-Type')
-        params = None
-
+        headers = {'X-API-Key': data.get('Key'), 'Referer': 'Gateway',
+                   'Content-Type': request.headers.get('Content-Type')}
         if auth_header is not None:
             headers["Authorization"] = auth_header
 
-        if request.method.lower() == "get":
-            params = request.args
+        url = f'{data.get("Url")}{path}'
+        params = request.args if request.method.lower() == "get" else None
 
-        before_request = datetime.datetime.now()
-        if content_type == 'application/json':
-            response = requests.request(request.method, url, headers=headers, params=params, json=request.json)
-        else:
-            response = requests.request(request.method, url, headers=headers, params=params, data=request.form,
-                                        files=request.files)
-        
-        after_request = datetime.datetime.now()
-        print("Request module time: ", after_request - before_request)
+        async with httpx.AsyncClient() as client:
+            if request.headers.get('Content-Type') == 'application/json':
+                response = await client.request(request.method, url, headers=headers, params=params, json=request.json)
+            else:
+                response = await client.request(request.method, url, headers=headers, params=params, data=request.form)
 
-        end_time = time.time()
-        execution_time = end_time - start_time
-
-        # Update api_logs collection
-        # api_logs = collection('api_logs')
-        # log_data = {
-        #     "RequestTime": datetime.datetime.fromtimestamp(int(start_time)),
-        #     "ResponseTime": datetime.datetime.fromtimestamp(int(end_time)),
-        #     "API": data["_id"],
-        #     "ExecutionTime": execution_time
-        # }
-        # api_logs.put(log_data)
+        # Note: In the case of file uploads, additional handling will be needed.
 
         # Update apis collection
-        status = 'healthy' if response.status_code < 500 else 'unhealthy'  # Added 500 instead of just ok
+        status = 'healthy' if response.status_code < 500 else 'unhealthy'
         if status == "unhealthy":
             db.set({"_id": data["_id"]}, {"Status": status, "LastChecked": datetime.datetime.now()})
+
         return response.text, response.status_code
 
-    except HTTPException as http:
-        logging.error(http)
-        return jsonify({"error": http.description}), http.code
-
     except Exception as e:
-        logging.error(traceback.format_exc())
         return jsonify({"error": "An error occurred processing your request"}), 500
 
 
