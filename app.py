@@ -111,10 +111,13 @@ async def processAPI(service, path):
             return jsonify({"error": "Requested service not found"}), 404
 
         auth_header = request.headers.get('Authorization')
-        headers = {'X-API-Key': data.get('Key'), 'Referer': 'Gateway',
-                   'Content-Type': request.headers.get('Content-Type')}
-        if auth_header is not None:
+        headers = {'X-API-Key': data.get('Key'), 'Referer': 'Gateway'}
+        if auth_header:
             headers["Authorization"] = auth_header
+
+        content_type = request.headers.get('Content-Type')
+        if content_type:
+            headers['Content-Type'] = content_type
 
         url = f'{data.get("Url")}{path}'
         params = request.args if request.method.lower() == "get" else None
@@ -135,6 +138,7 @@ async def processAPI(service, path):
         return response.text, response.status_code
 
     except Exception as e:
+        print(traceback.format_exc())
         return jsonify({"error": "An error occurred processing your request"}), 500
 
 
