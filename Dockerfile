@@ -1,5 +1,5 @@
 # Build Stage
-FROM python:3.11-alpine as build
+FROM python:3.12-alpine3.18 as build
 
 # Upgrade pip and install necessary utilities
 RUN pip install --upgrade pip
@@ -22,7 +22,7 @@ COPY requirements.txt /app/requirements.txt
 RUN pip install -r requirements.txt
 
 # Production Stage
-FROM python:3.11-alpine
+FROM python:3.12-alpine3.18
 
 # Install nginx and supervisord
 RUN apk add --no-cache nginx supervisor
@@ -63,5 +63,3 @@ EXPOSE 80
 
 # Set the CMD to supervisord
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
-
-#
