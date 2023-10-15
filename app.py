@@ -1,3 +1,4 @@
+from environment import config_name
 import datetime
 import logging.config
 import os
@@ -6,9 +7,8 @@ import traceback
 import httpx
 import threading
 
-import requests
+from dotenv import load_dotenv, find_dotenv
 from daba.Mongo import collection
-from dotenv import load_dotenv
 from flask import Flask, request, jsonify, g
 from flask_cors import CORS
 from werkzeug.exceptions import HTTPException
@@ -16,7 +16,7 @@ from werkzeug.local import LocalProxy
 
 from APIVerification import APIVerification
 
-load_dotenv()
+load_dotenv(find_dotenv())
 current_dir = os.path.dirname(os.path.abspath(__file__))
 log_file = os.path.join(current_dir, 'logging.ini')
 logging.config.fileConfig(log_file)
