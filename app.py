@@ -4,6 +4,7 @@ import os
 import time
 import traceback
 import httpx
+import threading
 
 import requests
 from daba.Mongo import collection
@@ -42,46 +43,54 @@ def before_request():
     g._start_time = time.time()
 
 
-@app.route("/api/v1/")
+@app.route("/")
 def hello():
     return "<h1>Welcome to API gateway!</h1><p>This serves as the gateway to other micro-services</p>", 200
 
 
-@app.route('/api/v1/<service>/', methods=['GET', 'POST', 'PUT', 'DELETE'])
-def processHome(service):
+@app.route('/<service>/', methods=['GET', 'POST', 'PUT', 'DELETE'])
+async def processHome(service):
     try:
         api_verification = APIVerification()
 
         if not api_verification.verify_request():
             return jsonify({"error": "Invalid API key or Referer, or monthly limit exceeded"}), 403
 
-        data = db.getAfterCount({"Status": 'healthy', "Service": service}, "CallCount")
+        data = db.getAfterCount({"Service": service}, "CallCount")
         if not data:
             return jsonify({"error": "Requested service not found"}), 404
 
         auth_header = request.headers.get('Authorization')
-        headers = {'X-API-Key': data.get('Key'), 'Referer': 'Gateway', 'Authorization': auth_header,
-                   'Content-Type': request.headers.get('Content-Type')}
-        url = f'{data.get("Url")}'
-        content_type = request.headers.get('Content-Type')
+        headers = {'X-API-Key': data.get('Key'), 'Referer': 'Gateway'}
+        if auth_header:
+            headers["Authorization"] = auth_header
 
-        if content_type == 'application/json':
-            response = requests.request(request.method, url, headers=headers, json=request.json)
-        else:
-            response = requests.request(request.method, url, headers=headers, data=request.form)
+        content_type = request.headers.get('Content-Type')
+        if content_type:
+            headers['Content-Type'] = content_type
+
+        url = f'{data.get("Url")}'
+        params = request.args if request.method.lower() == "get" else None
+
+        async with httpx.AsyncClient() as client:
+            if request.headers.get('Content-Type') == 'application/json':
+                response = await client.request(request.method, url, headers=headers, params=params, json=request.json)
+            else:
+                response = await client.request(request.method, url, headers=headers, params=params, data=request.form)
 
         end_time = time.time()
         execution_time = end_time - start_time
 
         # Update api_logs collection
-        # api_logs = collection('api_logs')
-        # log_data = {
-        #     "RequestTime": datetime.datetime.fromtimestamp(int(start_time)),
-        #     "ResponseTime": datetime.datetime.fromtimestamp(int(end_time)),
-        #     "API": data["_id"],
-        #     "ExecutionTime": execution_time
-        # }
-        # api_logs.put(log_data)
+        if os.environ.get('DB_LOG') and os.environ.get('DB_LOG') == 'on':
+            api_logs = collection('api_logs')
+            log_data = {
+                "RequestTime": datetime.datetime.fromtimestamp(int(start_time)),
+                "ResponseTime": datetime.datetime.fromtimestamp(int(end_time)),
+                "API": data["_id"],
+                "ExecutionTime": execution_time
+            }
+            api_logs.put(log_data)
 
         # Update apis collection
         status = 'healthy' if response.status_code < 500 else 'unhealthy'
@@ -98,7 +107,7 @@ def processHome(service):
         return jsonify({"error": "An error occurred processing your request"}), 500
 
 
-@app.route('/api/v1/<service>/<path:path>', methods=['GET', 'POST', 'PUT', 'DELETE'])
+@app.route('/<service>/<path:path>', methods=['GET', 'POST', 'PUT', 'DELETE'])
 async def processAPI(service, path):
     try:
         api_verification = APIVerification()
@@ -121,7 +130,6 @@ async def processAPI(service, path):
 
         url = f'{data.get("Url")}{path}'
         params = request.args if request.method.lower() == "get" else None
-
         async with httpx.AsyncClient() as client:
             if request.headers.get('Content-Type') == 'application/json':
                 response = await client.request(request.method, url, headers=headers, params=params, json=request.json)
@@ -129,6 +137,20 @@ async def processAPI(service, path):
                 response = await client.request(request.method, url, headers=headers, params=params, data=request.form)
 
         # Note: In the case of file uploads, additional handling will be needed.
+
+        end_time = time.time()
+        execution_time = end_time - start_time
+
+        # Update api_logs collection
+        if os.environ.get('DB_LOG') and os.environ.get('DB_LOG') == 'on':
+            api_logs = collection('api_logs')
+            log_data = {
+                "RequestTime": datetime.datetime.fromtimestamp(int(start_time)),
+                "ResponseTime": datetime.datetime.fromtimestamp(int(end_time)),
+                "API": data["_id"],
+                "ExecutionTime": execution_time  # seconds
+            }
+            api_logs.put(log_data)
 
         # Update apis collection
         status = 'healthy' if response.status_code < 500 else 'unhealthy'
@@ -147,13 +169,19 @@ def app_handler(param=404):
     return jsonify({"error": 'The requested service not found'}), 404
 
 
-def health_check():
+async def health_check():
+    """
+    This function is part of health check which run a thread to check api health every 6 hours and if fails it will
+    change the flag to unhealthy in database
+    :return:
+    """
     while True:
-        time.sleep(2 * 60 * 60)  # sleep for 2 hours
+        time.sleep(21600)  # sleep for 6 hours
         apis = db.get({})
         for api in apis:
             try:
-                response = requests.get(api["Url"])
+                async with httpx.AsyncClient() as client:
+                    response = await client.get(api["Url"])
                 status = 'healthy' if response.status_code < 500 else 'unhealthy'
                 db.set({"_id": api["_id"]}, {"Status": status, "LastChecked": datetime.datetime.now()})
             except Exception as e:
@@ -161,10 +189,10 @@ def health_check():
 
 
 def run():
-    load_dotenv()
-    # health_check_thread = threading.Thread(target=health_check, daemon=True)
-    # health_check_thread.start()
-    app.run(host=os.getenv('HOST'), port=os.getenv('PORT'), debug=True, load_dotenv='development')
+    if os.environ.get('HEALTH_CHECK') and os.environ.get('HEALTH_CHECK') == 'on':
+        health_check_thread = threading.Thread(target=health_check, daemon=True)
+        health_check_thread.start()
+    app.run(host=os.getenv('HOST'), port=os.getenv('PORT'))
 
 
 if __name__ == "__main__":

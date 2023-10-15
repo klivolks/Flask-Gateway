@@ -3,7 +3,7 @@ Flask[async]~=2.3.2
 pymongo~=4.3.3
 flask_cors~=3.0.10
 requests~=2.31.0
-daba~=0.0.7
+daba~=0.0.10
 Werkzeug~=2.3.4
 
 httpx~=0.25.0
