@@ -8,11 +8,11 @@ RUN apk add --no-cache git
 # Set working directory
 WORKDIR /app
 
-# Clone the latest release from the Git repository
-RUN git clone https://github.com/klivolks/Flask-Gateway.git /app
+# Copy app folder to image
+COPY . /app
 
 # Rename .env-example to .env and write a secret key
-RUN mv /app/.env-example /app/.env
+RUN mv /app/.env.production /app/.env
 
 # Generate a unique secret key and append it to .env file
 RUN echo "SECRET_KEY=`python -c 'import secrets; print(secrets.token_urlsafe(16))'`" >> /app/.env
@@ -63,3 +63,5 @@ EXPOSE 80
 
 # Set the CMD to supervisord
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
+
+#
