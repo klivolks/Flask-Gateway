@@ -48,7 +48,7 @@ def hello():
     return "<h1>Welcome to API gateway!</h1><p>This serves as the gateway to other micro-services</p>", 200
 
 
-@app.route('/<service>/', methods=['GET', 'POST', 'PUT', 'DELETE'])
+@app.route('/api/v1/<service>/', methods=['GET', 'POST', 'PUT', 'DELETE'])
 async def processHome(service):
     try:
         api_verification = APIVerification()
@@ -107,7 +107,7 @@ async def processHome(service):
         return jsonify({"error": "An error occurred processing your request"}), 500
 
 
-@app.route('/<service>/<path:path>', methods=['GET', 'POST', 'PUT', 'DELETE'])
+@app.route('/api/v1/<service>/<path:path>', methods=['GET', 'POST', 'PUT', 'DELETE'])
 async def processAPI(service, path):
     try:
         api_verification = APIVerification()
@@ -123,6 +123,13 @@ async def processAPI(service, path):
         headers = {'X-API-Key': data.get('Key'), 'Referer': 'Gateway'}
         if auth_header:
             headers["Authorization"] = auth_header
+
+        token = auth_header.split(" ")[1]
+        if token and token != 'null':
+            loginlog = collection('Loginlog')
+            access_count = loginlog.count({'access_token': token})
+            if access_count == 0:
+                return None
 
         content_type = request.headers.get('Content-Type')
         if content_type:
