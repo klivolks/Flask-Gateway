@@ -123,13 +123,12 @@ async def processAPI(service, path):
         headers = {'X-API-Key': data.get('Key'), 'Referer': 'Gateway'}
         if auth_header:
             headers["Authorization"] = auth_header
-
-        token = auth_header.split(" ")[1]
-        if token and token != 'null':
-            loginlog = collection('Loginlog')
-            access_count = loginlog.count({'access_token': token})
-            if access_count == 0:
-                return None
+            token = auth_header.split(" ")[1]
+            if token and token != 'null':
+                loginlog = collection('Loginlog')
+                access_count = loginlog.count({'access_token': token})
+                if access_count == 0:
+                    return "Unauthorised", 401
 
         content_type = request.headers.get('Content-Type')
         if content_type:
