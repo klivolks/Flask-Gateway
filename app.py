@@ -136,7 +136,7 @@ async def processAPI(service, path):
 
         url = f'{data.get("Url")}{path}'
         params = request.args if request.method.lower() == "get" else None
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=120.0) as client:
             if request.headers.get('Content-Type') == 'application/json':
                 response = await client.request(request.method, url, headers=headers, params=params, json=request.json)
             else:
