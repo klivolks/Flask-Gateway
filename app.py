@@ -1,13 +1,13 @@
+from markupsafe import escape
+
 from environment import config_name
 import datetime
 import logging.config
 import os
 import time
-import traceback
 import httpx
 import threading
 
-from dotenv import load_dotenv, find_dotenv
 from daba.Mongo import collection
 from flask import Flask, request, jsonify, g
 from flask_cors import CORS
@@ -16,7 +16,6 @@ from werkzeug.local import LocalProxy
 
 from APIVerification import APIVerification
 
-load_dotenv(find_dotenv())
 current_dir = os.path.dirname(os.path.abspath(__file__))
 log_file = os.path.join(current_dir, 'logging.ini')
 logging.config.fileConfig(log_file)
@@ -70,7 +69,10 @@ async def processHome(service):
             headers['Content-Type'] = content_type
 
         url = f'{data.get("Url")}'
-        params = request.args if request.method.lower() == "get" else None
+        params = None
+        if request.method.lower() == "get":
+            # Apply `escape` to each query parameter
+            params = {key: escape(value) for key, value in request.args.items()}
 
         async with httpx.AsyncClient() as client:
             if request.headers.get('Content-Type') == 'application/json':
@@ -107,6 +109,23 @@ async def processHome(service):
         return jsonify({"error": "An error occurred processing your request"}), 500
 
 
+@app.route('/api/v1/<service>/swagger')
+async def processSwagger(service):
+    try:
+        data = db.getAfterCount({"Service": service}, "CallCount")
+        if not data:
+            return jsonify({"error": "Requested service not found"}), 404
+        url = f'{data.get("Url")}swagger'
+
+        async with httpx.AsyncClient(timeout=120.0) as client:
+             response = await client.request(request.method, url)
+
+        return response
+    except Exception as e:
+        print(traceback.format_exc())
+        return jsonify({"error": "An error occurred processing your request"}), 500
+
+
 @app.route('/api/v1/<service>/<path:path>', methods=['GET', 'POST', 'PUT', 'DELETE'])
 async def processAPI(service, path):
     try:
@@ -119,16 +138,7 @@ async def processAPI(service, path):
         if not data:
             return jsonify({"error": "Requested service not found"}), 404
 
-        auth_header = request.headers.get('Authorization')
         headers = {'X-API-Key': data.get('Key'), 'Referer': 'Gateway'}
-        if auth_header:
-            headers["Authorization"] = auth_header
-            token = auth_header.split(" ")[1]
-            if token and token != 'null':
-                loginlog = collection('Loginlog')
-                access_count = loginlog.count({'access_token': token})
-                if access_count == 0:
-                    return "Unauthorised", 401
 
         content_type = request.headers.get('Content-Type')
         if content_type:
