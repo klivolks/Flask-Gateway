@@ -139,7 +139,10 @@ async def processAPI(service, path):
             headers['Content-Type'] = content_type
 
         url = f'{data.get("Url")}{path}'
-        params = request.args if request.method.lower() == "get" else None
+        params = None
+        if request.method.lower() == "get":
+            # Apply `escape` to each query parameter
+            params = {key: escape(value) for key, value in request.args.items()}
         async with httpx.AsyncClient(timeout=120.0) as client:
             if request.headers.get('Content-Type') == 'application/json':
                 response = await client.request(request.method, url, headers=headers, params=params, json=request.json)
