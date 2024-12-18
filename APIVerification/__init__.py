@@ -1,6 +1,10 @@
 import datetime
 from flask import request
 from daba.Mongo import collection
+from dotenv import load_dotenv, find_dotenv
+from os import environ
+
+load_dotenv(find_dotenv())
 
 STATUS = [
     {
@@ -29,24 +33,26 @@ class APIVerification:
             return False
 
         # Checking the Monthly Access
-        current_month = datetime.datetime.now().month
-        monthly_access_data = self.db_monthly_access.getAfterCount(
-            {"RefererId": referer_data["_id"], "Month": current_month}, "CallCount")
-        if monthly_access_data is None:
-            # Insert a new document for the current month with CallCount 1
-            self.db_monthly_access.put({"RefererId": referer_data["_id"], "Month": current_month, "CallCount": 1})
-        elif monthly_access_data["CallCount"] >= referer_data["Limit"]:
-            return False
+        if environ.get('LIMIT_CHECK') and environ.get('LIMIT_CHECK') == 'on':
+            current_month = datetime.datetime.now().month
+            monthly_access_data = self.db_monthly_access.getAfterCount(
+                {"RefererId": referer_data["_id"], "Month": current_month}, "CallCount")
+            if monthly_access_data is None:
+                # Insert a new document for the current month with CallCount 1
+                self.db_monthly_access.put({"RefererId": referer_data["_id"], "Month": current_month, "CallCount": 1})
+            elif monthly_access_data["CallCount"] >= referer_data["Limit"]:
+                return False
 
         # Logging the Request
-        log_data = {
-            "IP": request.remote_addr,
-            "URL": request.url,
-            "Device": request.user_agent.platform,
-            "Referer_id": referer_data["_id"],
-            "Timestamp": datetime.datetime.now(),
-            "Application": referer
-        }
-        self.db_logs.put(log_data)
+        if environ.get('DB_LOG') and environ.get('DB_LOG') == 'on':
+            log_data = {
+                "IP": request.remote_addr,
+                "URL": request.url,
+                "Device": request.user_agent.platform,
+                "Referer_id": referer_data["_id"],
+                "Timestamp": datetime.datetime.now(),
+                "Application": referer
+            }
+            self.db_logs.put(log_data)
 
         return True

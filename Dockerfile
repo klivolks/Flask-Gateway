@@ -1,5 +1,5 @@
 # Build Stage
-FROM python:3.11-alpine as build
+FROM python:3.12-alpine3.18 as build
 
 # Upgrade pip and install necessary utilities
 RUN pip install --upgrade pip
@@ -8,11 +8,11 @@ RUN apk add --no-cache git
 # Set working directory
 WORKDIR /app
 
-# Clone the latest release from the Git repository
-RUN git clone https://github.com/klivolks/Flask-Gateway.git /app
+# Copy app folder to image
+COPY . /app
 
 # Rename .env-example to .env and write a secret key
-RUN mv /app/.env-example /app/.env
+RUN mv /app/.env.production /app/.env
 
 # Generate a unique secret key and append it to .env file
 RUN echo "SECRET_KEY=`python -c 'import secrets; print(secrets.token_urlsafe(16))'`" >> /app/.env
@@ -22,7 +22,7 @@ COPY requirements.txt /app/requirements.txt
 RUN pip install -r requirements.txt
 
 # Production Stage
-FROM python:3.11-alpine
+FROM python:3.12-alpine3.18
 
 # Install nginx and supervisord
 RUN apk add --no-cache nginx supervisor
