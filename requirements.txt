@@ -7,3 +7,5 @@ daba~=0.0.10
 Werkzeug~=2.3.4
 
 httpx~=0.25.0
+Flask-Testing~=0.8.1
+MarkupSafe~=2.1.2

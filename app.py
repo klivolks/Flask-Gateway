@@ -6,6 +6,7 @@ import time
 import traceback
 import httpx
 import threading
+from markupsafe import escape
 
 from dotenv import load_dotenv, find_dotenv
 from daba.Mongo import collection
@@ -70,7 +71,10 @@ async def processHome(service):
             headers['Content-Type'] = content_type
 
         url = f'{data.get("Url")}'
-        params = request.args if request.method.lower() == "get" else None
+        params = None
+        if request.method.lower() == "get":
+            # Apply `escape` to each query parameter
+            params = {key: escape(value) for key, value in request.args.items()}
 
         async with httpx.AsyncClient() as client:
             if request.headers.get('Content-Type') == 'application/json':
